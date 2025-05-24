@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nişan Atış Oyunu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background: #111;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(#333, #111);
+      cursor: crosshair;
+    }
+
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 24px;
+      z-index: 10;
+      display: flex;
+      gap: 40px;
+    }
+
+    #restartBtn {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      font-size: 18px;
+      padding: 10px 20px;
+      background: crimson;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+<div id="hud">
+  <div id="score">Puan: 0</div>
+  <div id="time">Süre: 30</div>
+</div>
+<button id="restartBtn">🔄 Yeniden Başlat</button>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  let width, height;
+
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  let score = 0;
+  let timeLeft = 30;
+  let targets = [];
+  let gameOver = false;
+  let spawnInterval;
+  let countdownInterval;
+
+  const scoreDisplay = document.getElementById("score");
+  const timeDisplay = document.getElementById("time");
+  const restartBtn = document.getElementById("restartBtn");
+
+  class Target {
+    constructor() {
+      this.r = 30;
+      this.x = Math.random() * (width - 2 * this.r) + this.r;
+      this.y = Math.random() * (height - 2 * this.r - 50) + this.r + 50;
+      this.hit = false;
+      this.alpha = 1;
+    }
+
+    draw() {
+      if (this.hit) {
+        this.alpha -= 0.1;
+        if (this.alpha <= 0) return false;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = this.hit ? "limegreen" : "crimson";
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+      ctx.restore();
+      return true;
+    }
+
+    isHit(px, py) {
+      const dx = px - this.x;
+      const dy = py - this.y;
+      return dx * dx + dy * dy <= this.r * this.r;
+    }
+  }
+
+  function spawnTarget() {
+    if (gameOver) return;
+    targets.push(new Target());
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    targets = targets.filter(t => t.draw());
+
+    if (!gameOver) requestAnimationFrame(draw);
+  }
+
+  function shoot(x, y) {
+    if (gameOver) return;
+    for (const t of targets) {
+      if (!t.hit && t.isHit(x, y)) {
+        t.hit = true;
+        score += 10;
+        scoreDisplay.textContent = "Puan: " + score;
+        break;
+      }
+    }
+  }
+
+  canvas.addEventListener("click", e => shoot(e.offsetX, e.offsetY));
+  canvas.addEventListener("touchstart", e => {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    shoot(touch.clientX - rect.left, touch.clientY - rect.top);
+  });
+
+  function startGame() {
+    score = 0;
+    timeLeft = 30;
+    gameOver = false;
+    targets = [];
+    scoreDisplay.textContent = "Puan: 0";
+    timeDisplay.textContent = "Süre: 30";
+    restartBtn.style.display = "none";
+
+    spawnInterval = setInterval(spawnTarget, 800);
+    countdownInterval = setInterval(() => {
+      timeLeft--;
+      timeDisplay.textContent = "Süre: " + timeLeft;
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+
+    draw();
+  }
+
+  function endGame() {
+    gameOver = true;
+    clearInterval(spawnInterval);
+    clearInterval(countdownInterval);
+    restartBtn.style.display = "block";
+  }
+
+  restartBtn.addEventListener("click", startGame);
+
+  startGame(); // ilk başlangıç
+</script>
+
+</body>
+</html>
